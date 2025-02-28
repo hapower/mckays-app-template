@@ -1,5 +1,20 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-. "$(dirname -- "$0")/_/husky.sh"
+# Use the full path to npm if available, otherwise try to use npm from PATH
+NPM_PATH=$(which npm)
+if [ -z "$NPM_PATH" ]; then
+  # Try common npm locations
+  if [ -f "/usr/local/bin/npm" ]; then
+    NPM_PATH="/usr/local/bin/npm"
+  elif [ -f "/opt/homebrew/bin/npm" ]; then
+    NPM_PATH="/opt/homebrew/bin/npm"
+  elif [ -f "$HOME/.nvm/versions/node/$(nvm current)/bin/npm" ]; then
+    NPM_PATH="$HOME/.nvm/versions/node/$(nvm current)/bin/npm"
+  else
+    echo "Error: npm not found. Skipping pre-commit hooks."
+    exit 0  # Exit gracefully to allow commit
+  fi
+fi
 
-npm run lint:fix && npm run format:write && git add .
+# Run the linting and formatting commands
+$NPM_PATH run lint:fix && $NPM_PATH run format:write && git add .

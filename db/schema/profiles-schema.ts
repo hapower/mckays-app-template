@@ -1,18 +1,22 @@
 /*
 <ai_context>
-Defines the database schema for profiles.
+Defines the database schema for user profiles in AttendMe application.
+This schema stores essential user information and their membership details.
 </ai_context>
 */
 
-import { pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core"
+import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
 
-export const membershipEnum = pgEnum("membership", ["free", "pro"])
+export const membershipEnum = pgEnum("membership", ["free", "student", "pro"])
 
 export const profilesTable = pgTable("profiles", {
-  userId: text("user_id").primaryKey().notNull(),
-  membership: membershipEnum("membership").notNull().default("free"),
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  email: text("email").notNull(),
+  fullName: text("full_name"),
+  specialty: text("specialty"),
   stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
+  membership: membershipEnum("membership").notNull().default("free"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
