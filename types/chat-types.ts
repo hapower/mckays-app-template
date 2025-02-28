@@ -38,6 +38,7 @@ export interface Citation {
   year?: string
   doi?: string
   url?: string
+  referenceNumber?: number
   inLibrary: boolean
   createdAt: Date
   updatedAt: Date

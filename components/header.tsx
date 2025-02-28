@@ -7,6 +7,7 @@ This client component provides the header for the app.
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { MainNav, MobileNav } from "@/components/navigation"
 import {
   SignedIn,
   SignedOut,
@@ -14,26 +15,21 @@ import {
   SignUpButton,
   UserButton
 } from "@clerk/nextjs"
-import { Menu, Rocket, X } from "lucide-react"
+import { Rocket } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { ThemeSwitcher } from "./utilities/theme-switcher"
 
-const navLinks = [
-  { href: "/about", label: "About" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/contact", label: "Contact" }
+const navItems = [
+  { title: "About", href: "/about" },
+  { title: "Pricing", href: "/pricing" },
+  { title: "Contact", href: "/contact" }
 ]
 
-const signedInLinks = [{ href: "/todo", label: "Todo" }]
+const signedInItems = [{ title: "Todo", href: "/todo" }]
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
-
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen)
-  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,29 +56,12 @@ export default function Header() {
           </Link>
         </div>
 
-        <nav className="absolute left-1/2 hidden -translate-x-1/2 space-x-2 font-semibold md:flex">
-          {navLinks.map(link => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-full px-3 py-1 hover:opacity-80"
-            >
-              {link.label}
-            </Link>
-          ))}
-
+        <div className="hidden md:flex md:flex-1 md:items-center md:justify-center">
+          <MainNav items={navItems} className="mx-6" />
           <SignedIn>
-            {signedInLinks.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="rounded-full px-3 py-1 hover:opacity-80"
-              >
-                {link.label}
-              </Link>
-            ))}
+            <MainNav items={signedInItems} className="mx-6" />
           </SignedIn>
-        </nav>
+        </div>
 
         <div className="flex items-center space-x-4">
           <ThemeSwitcher />
@@ -101,62 +80,9 @@ export default function Header() {
             <UserButton />
           </SignedIn>
 
-          <div className="md:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleMenu}
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? (
-                <X className="size-6" />
-              ) : (
-                <Menu className="size-6" />
-              )}
-            </Button>
-          </div>
+          <MobileNav items={[...navItems, ...signedInItems]} />
         </div>
       </div>
-
-      {isMenuOpen && (
-        <nav className="bg-primary-foreground text-primary p-4 md:hidden">
-          <ul className="space-y-2">
-            <li>
-              <Link
-                href="/"
-                className="block hover:underline"
-                onClick={toggleMenu}
-              >
-                Home
-              </Link>
-            </li>
-            {navLinks.map(link => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="block hover:underline"
-                  onClick={toggleMenu}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-            <SignedIn>
-              {signedInLinks.map(link => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="block hover:underline"
-                    onClick={toggleMenu}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </SignedIn>
-          </ul>
-        </nav>
-      )}
     </header>
   )
 }
