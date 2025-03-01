@@ -1,0 +1,19 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background bubble -->
+  <path 
+    d="M16 2C8.268 2 2 8.268 2 16C2 19.3475 3.19813 22.1466 5.42763 24.6337C5.20512 26.9788 4.17675 28.9607 4.15525 29C4.05762 29.2001 4.09487 29.4433 4.24238 29.5981C4.38988 29.7601 4.63 29.8219 4.84475 29.7386C7.47075 28.7677 9.146 27.7395 10.0839 27.0981C11.9576 27.6889 13.9395 28 16 28C23.732 28 30 21.732 30 14C30 6.268 23.732 2 16 2Z" 
+    fill="url(#gradient)"
+  />
+  
+  <!-- Medical cross -->
+  <rect x="12" y="10" width="8" height="12" rx="1" fill="white" />
+  <rect x="10" y="14" width="12" height="4" rx="1" fill="white" />
+  
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="gradient" x1="2" y1="2" x2="30" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82F6" />
+      <stop offset="1" stop-color="#2563EB" />
+    </linearGradient>
+  </defs>
+</svg> 

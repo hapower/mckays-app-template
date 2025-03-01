@@ -23,7 +23,8 @@ import { ThemeSwitcher } from "./utilities/theme-switcher"
 const navItems = [
   { title: "About", href: "/about" },
   { title: "Pricing", href: "/pricing" },
-  { title: "Contact", href: "/contact" }
+  { title: "Contact", href: "/contact" },
+  { title: "Feedback", href: "/feedback" }
 ]
 
 const signedInItems = [{ title: "Todo", href: "/todo" }]

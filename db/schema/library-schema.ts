@@ -3,6 +3,7 @@ import { specialtiesTable } from "./specialties-schema"
 
 export const libraryTable = pgTable("library", {
   id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
   title: text("title").notNull(),
   content: text("content").notNull(),
   specialtyId: uuid("specialty_id").references(() => specialtiesTable.id),

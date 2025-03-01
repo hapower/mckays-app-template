@@ -18,19 +18,27 @@ import {
   libraryTable
 } from "@/db/schema/library-schema"
 import { ActionState } from "@/types"
-import { and, desc, eq, ilike, inArray, lt, lte, gte, gt } from "drizzle-orm"
+import { and, desc, eq, ilike, inArray, lt, lte, gte, gt, or } from "drizzle-orm"
 import { specialtiesTable } from "@/db/schema/specialties-schema"
 
 /**
  * Creates a new reference in the library
  * 
- * @param reference - The reference data to insert
+ * @param reference - The reference data to insert (must include userId)
  * @returns ActionState with the created reference or error message
  */
 export async function createReferenceAction(
   reference: InsertLibraryItem
 ): Promise<ActionState<SelectLibraryItem>> {
   try {
+    // Ensure userId is provided
+    if (!reference.userId) {
+      return { 
+        isSuccess: false, 
+        message: "User ID is required to create a reference" 
+      }
+    }
+    
     const [newReference] = await db.insert(libraryTable).values(reference).returning()
     
     return {
@@ -48,10 +56,12 @@ export async function createReferenceAction(
  * Retrieves a reference by its ID
  * 
  * @param id - The ID of the reference to retrieve
+ * @param userId - The ID of the user requesting the reference (for permission check)
  * @returns ActionState with the reference or error message
  */
 export async function getReferenceByIdAction(
-  id: string
+  id: string,
+  userId?: string
 ): Promise<ActionState<SelectLibraryItem | undefined>> {
   try {
     const reference = await db.query.library.findFirst({
@@ -62,6 +72,14 @@ export async function getReferenceByIdAction(
       return { 
         isSuccess: false, 
         message: "Reference not found" 
+      }
+    }
+    
+    // Permission check - only return if public or belongs to the user
+    if (userId && reference.userId !== userId) {
+      return { 
+        isSuccess: false, 
+        message: "You don't have permission to access this reference" 
       }
     }
     
@@ -90,13 +108,9 @@ export async function getUserReferencesAction(
   offset: number = 0
 ): Promise<ActionState<SelectLibraryItem[]>> {
   try {
-    // Note: The library schema currently doesn't have a userId field,
-    // so this function doesn't filter by user.
-    // TODO: Add userId field to library schema or implement user filtering
-    // through a join with another table that has user association.
-    
-    // Join with specialties to include specialty information
+    // Filter by userId
     const references = await db.query.library.findMany({
+      where: eq(libraryTable.userId, userId),
       limit,
       offset,
       orderBy: [desc(libraryTable.updatedAt)],
@@ -126,18 +140,30 @@ export async function getUserReferencesAction(
  * Retrieves references filtered by specialty
  * 
  * @param specialtyId - The ID of the specialty to filter by
+ * @param userId - The ID of the user who owns the references
  * @param limit - Maximum number of references to retrieve (default: 50)
  * @param offset - Number of references to skip (default: 0)
  * @returns ActionState with array of references or error message
  */
 export async function getReferencesBySpecialtyAction(
   specialtyId: string,
+  userId: string,
   limit: number = 50,
   offset: number = 0
 ): Promise<ActionState<SelectLibraryItem[]>> {
   try {
+    if (!userId) {
+      return {
+        isSuccess: false,
+        message: "User ID is required to get references by specialty"
+      }
+    }
+    
     const references = await db.query.library.findMany({
-      where: eq(libraryTable.specialtyId, specialtyId),
+      where: and(
+        eq(libraryTable.specialtyId, specialtyId),
+        eq(libraryTable.userId, userId)
+      ),
       limit,
       offset,
       orderBy: [desc(libraryTable.updatedAt)],
@@ -161,20 +187,32 @@ export async function getReferencesBySpecialtyAction(
  * Searches for references by title or content
  * 
  * @param searchTerm - The search term to match against title and content
+ * @param userId - The ID of the user who owns the references
  * @param limit - Maximum number of references to retrieve (default: 50)
  * @param offset - Number of references to skip (default: 0)
  * @returns ActionState with matching references or error message
  */
 export async function searchReferencesAction(
   searchTerm: string,
+  userId: string,
   limit: number = 50,
   offset: number = 0
 ): Promise<ActionState<SelectLibraryItem[]>> {
   try {
+    if (!userId) {
+      return {
+        isSuccess: false,
+        message: "User ID is required to search references"
+      }
+    }
+    
     const references = await db.query.library.findMany({
-      where: (library, { or }) => or(
-        ilike(library.title, `%${searchTerm}%`),
-        ilike(library.content, `%${searchTerm}%`)
+      where: and(
+        eq(libraryTable.userId, userId),
+        or(
+          ilike(libraryTable.title, `%${searchTerm}%`),
+          ilike(libraryTable.content, `%${searchTerm}%`)
+        )
       ),
       limit,
       offset,
@@ -199,14 +237,38 @@ export async function searchReferencesAction(
  * Updates a reference by its ID
  * 
  * @param id - The ID of the reference to update
+ * @param userId - The ID of the user updating the reference (for permission check)
  * @param data - The partial reference data to update
  * @returns ActionState with the updated reference or error message
  */
 export async function updateReferenceAction(
   id: string,
+  userId: string,
   data: Partial<InsertLibraryItem>
 ): Promise<ActionState<SelectLibraryItem>> {
   try {
+    // Check if the reference exists and belongs to the user
+    const reference = await db.query.library.findFirst({
+      where: eq(libraryTable.id, id)
+    })
+    
+    if (!reference) {
+      return { isSuccess: false, message: "Reference not found" }
+    }
+    
+    // Permission check
+    if (reference.userId !== userId) {
+      return { 
+        isSuccess: false, 
+        message: "You don't have permission to update this reference" 
+      }
+    }
+    
+    // Remove userId from data if present (shouldn't be able to change ownership)
+    if (data.userId) {
+      delete data.userId
+    }
+    
     const [updatedReference] = await db
       .update(libraryTable)
       .set({
@@ -235,12 +297,31 @@ export async function updateReferenceAction(
  * Deletes a reference by its ID
  * 
  * @param id - The ID of the reference to delete
+ * @param userId - The ID of the user deleting the reference (for permission check)
  * @returns ActionState with void or error message
  */
 export async function deleteReferenceAction(
-  id: string
+  id: string,
+  userId: string
 ): Promise<ActionState<void>> {
   try {
+    // Check if the reference exists and belongs to the user
+    const reference = await db.query.library.findFirst({
+      where: eq(libraryTable.id, id)
+    })
+    
+    if (!reference) {
+      return { isSuccess: false, message: "Reference not found" }
+    }
+    
+    // Permission check
+    if (reference.userId !== userId) {
+      return { 
+        isSuccess: false, 
+        message: "You don't have permission to delete this reference" 
+      }
+    }
+    
     await db.delete(libraryTable).where(eq(libraryTable.id, id))
     
     return {
@@ -374,9 +455,9 @@ export async function createMultipleReferencesAction(
 }
 
 /**
- * Gets references with optional filtering and sorting
+ * Retrieves filtered references
  * 
- * @param filter - Filter options (title, specialtyId, dateFrom, dateTo)
+ * @param filter - Filter parameters
  * @param sort - Sort option (createdAt, updatedAt, title)
  * @param order - Sort order (asc, desc)
  * @param limit - Maximum number of references to retrieve (default: 50)
@@ -385,6 +466,7 @@ export async function createMultipleReferencesAction(
  */
 export async function getFilteredReferencesAction(
   filter: {
+    userId: string; // Required - user ID for permission filtering
     title?: string;
     specialtyId?: string | string[];
     dateFrom?: Date;
@@ -396,8 +478,16 @@ export async function getFilteredReferencesAction(
   offset: number = 0
 ): Promise<ActionState<SelectLibraryItem[]>> {
   try {
+    // Ensure userId is provided
+    if (!filter.userId) {
+      return { 
+        isSuccess: false, 
+        message: "User ID is required for filtering references" 
+      }
+    }
+    
     // Build the where conditions
-    const whereConditions = []
+    const whereConditions = [eq(libraryTable.userId, filter.userId)]
     
     if (filter.title) {
       whereConditions.push(ilike(libraryTable.title, `%${filter.title}%`))
@@ -420,9 +510,7 @@ export async function getFilteredReferencesAction(
     }
     
     // Combine conditions into a single where clause
-    const whereClause = whereConditions.length > 0 
-      ? and(...whereConditions) 
-      : undefined
+    const whereClause = and(...whereConditions)
     
     // Use the db.query.library approach instead of select().from()
     let references
@@ -448,7 +536,6 @@ export async function getFilteredReferencesAction(
         }
       })
     } else {
-      // Default to updatedAt
       references = await db.query.library.findMany({
         where: whereClause,
         limit,
@@ -462,32 +549,42 @@ export async function getFilteredReferencesAction(
     
     return {
       isSuccess: true,
-      message: "Filtered references retrieved successfully",
+      message: "References retrieved successfully",
       data: references
     }
   } catch (error) {
     console.error("Error getting filtered references:", error)
-    return { isSuccess: false, message: "Failed to get filtered references" }
+    return { isSuccess: false, message: "Failed to get references" }
   }
 }
 
 /**
- * Adds a citation from a chat message to the library
+ * Creates a reference from a citation
  * 
- * @param citationData - The citation data including title, content, specialty, etc.
+ * @param citationData - The citation data
+ * @param userId - The ID of the user who owns the reference
  * @returns ActionState with the created reference or error message
  */
-export async function addCitationToLibraryAction(
+export async function createCitationReferenceAction(
   citationData: {
     title: string;
     content: string;
     specialtyId?: string;
     metadata?: Record<string, any>;
-  }
+  },
+  userId: string
 ): Promise<ActionState<SelectLibraryItem>> {
   try {
+    if (!userId) {
+      return { 
+        isSuccess: false, 
+        message: "User ID is required to add citation to library" 
+      }
+    }
+    
     // Create the library item from the citation
     const [newReference] = await db.insert(libraryTable).values({
+      userId,
       title: citationData.title,
       content: citationData.content,
       specialtyId: citationData.specialtyId,
