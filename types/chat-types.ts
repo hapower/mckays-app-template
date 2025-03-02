@@ -108,9 +108,25 @@ export interface StreamingResponse {
  * Props for the message bubble component
  */
 export interface MessageBubbleProps {
+  /**
+   * The message to display
+   */
   message: ChatMessage
+
+  /**
+   * Optional array of citations associated with the message
+   */
   citations?: Citation[]
+
+  /**
+   * Optional callback when adding a citation to the library
+   */
   onAddToLibrary?: (citationId: string) => void
+
+  /**
+   * Whether this message is currently being streamed
+   */
+  isStreaming?: boolean
 }
 
 /**
@@ -129,4 +145,45 @@ export interface CitationBubbleProps {
   citation: Citation
   onAddToLibrary?: (id: string) => void
   inLibrary: boolean
+}
+
+/**
+ * Stream status types for chat message streaming
+ */
+export enum StreamStatus {
+  IDLE = "idle",
+  STREAMING = "streaming",
+  PAUSED = "paused",
+  COMPLETED = "completed",
+  ERROR = "error"
+}
+
+/**
+ * Parameters for starting a chat stream
+ */
+export interface StartStreamParams {
+  /**
+   * The content of the user message
+   */
+  message: string
+
+  /**
+   * The ID of the chat this message belongs to
+   */
+  chatId?: string
+
+  /**
+   * The ID of the user sending the message
+   */
+  userId: string
+
+  /**
+   * Optional ID of the specialty for domain-specific responses
+   */
+  specialtyId?: string
+
+  /**
+   * Whether to use streaming mode (vs. standard mode)
+   */
+  useStreaming?: boolean
 }

@@ -25,7 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
+import { cn, formatDoiLink } from "@/lib/utils"
 import { CitationBubbleProps } from "@/types/chat-types"
 
 /**
@@ -38,25 +38,28 @@ import { CitationBubbleProps } from "@/types/chat-types"
 export function CitationItem({
   citation,
   onAddToLibrary,
-  inLibrary
+  inLibrary = false
 }: CitationBubbleProps) {
+  // Local state for expanded view and loading state
   const [isExpanded, setIsExpanded] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [isInLibrary, setIsInLibrary] = useState(inLibrary)
 
   /**
    * Handle adding citation to library
    */
   const handleAddToLibrary = async () => {
-    if (onAddToLibrary && !inLibrary) {
-      setIsAdding(true)
+    if (!onAddToLibrary || isInLibrary) return
 
-      try {
-        await onAddToLibrary(citation.id)
-      } catch (error) {
-        console.error("Error adding citation to library:", error)
-      } finally {
-        setIsAdding(false)
-      }
+    setIsAdding(true)
+
+    try {
+      await onAddToLibrary(citation.id)
+      setIsInLibrary(true)
+    } catch (error) {
+      console.error("Error adding citation to library:", error)
+    } finally {
+      setIsAdding(false)
     }
   }
 
@@ -66,6 +69,17 @@ export function CitationItem({
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded)
   }
+
+  /**
+   * Generate a DOI link if available
+   */
+  const doiLink = citation.doi ? formatDoiLink(citation.doi) : undefined
+
+  /**
+   * Choose the URL to open when clicking the external link button
+   * Prioritize DOI link over URL
+   */
+  const externalUrl = doiLink || citation.url
 
   return (
     <div
@@ -91,14 +105,14 @@ export function CitationItem({
                   variant="ghost"
                   size="icon"
                   className="size-6"
-                  disabled={inLibrary || isAdding}
+                  disabled={isInLibrary || isAdding}
                   onClick={e => {
                     e.stopPropagation()
                     handleAddToLibrary()
                   }}
                 >
-                  {inLibrary ? (
-                    <Check className="size-4" />
+                  {isInLibrary ? (
+                    <Check className="text-primary size-4" />
                   ) : isAdding ? (
                     <span className="block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : (
@@ -107,12 +121,12 @@ export function CitationItem({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                {inLibrary ? "In library" : "Add to library"}
+                {isInLibrary ? "In library" : "Add to library"}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
-          {citation.url && (
+          {externalUrl && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -122,7 +136,7 @@ export function CitationItem({
                     className="size-6"
                     onClick={e => {
                       e.stopPropagation()
-                      window.open(citation.url, "_blank", "noopener,noreferrer")
+                      window.open(externalUrl, "_blank", "noopener,noreferrer")
                     }}
                   >
                     <ExternalLink className="size-4" />
@@ -165,6 +179,12 @@ export function CitationItem({
               >
                 {citation.doi}
               </a>
+            </p>
+          )}
+          {isInLibrary && (
+            <p className="text-primary flex items-center font-medium italic">
+              <Check className="mr-1 size-3" />
+              Added to your library
             </p>
           )}
         </div>

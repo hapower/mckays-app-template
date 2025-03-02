@@ -10,6 +10,7 @@
  * - Expandable citation details
  * - Copy message functionality
  * - Add to library functionality for citations
+ * - Visual indicators for streaming messages
  *
  * @module components/chat/message-bubble
  */
@@ -36,11 +37,13 @@ import { ChatMessage, Citation, MessageBubbleProps } from "@/types/chat-types"
  * @param message - The chat message object containing content, role, and timestamps
  * @param citations - Optional array of citations associated with the message
  * @param onAddToLibrary - Optional callback when adding a citation to the library
+ * @param isStreaming - Whether this message is currently being streamed
  */
 export function MessageBubble({
   message,
   citations = [],
-  onAddToLibrary
+  onAddToLibrary,
+  isStreaming = false
 }: MessageBubbleProps) {
   const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 })
   const [expandedCitation, setExpandedCitation] = useState<string | null>(null)
@@ -132,7 +135,8 @@ export function MessageBubble({
             "bubble rounded-2xl px-4 py-2",
             isUserMessage
               ? "bg-primary text-primary-foreground rounded-tr-none"
-              : "bg-muted rounded-tl-none"
+              : "bg-muted rounded-tl-none",
+            isStreaming && !isUserMessage && "animate-pulse"
           )}
         >
           {renderMessageWithCitations(message.content)}
@@ -140,9 +144,13 @@ export function MessageBubble({
 
         {/* Timestamp and actions */}
         <div className="text-muted-foreground mt-1 flex items-center gap-x-2 px-1 text-xs">
-          <time dateTime={message.createdAt.toISOString()}>
-            {formatDateTime(message.createdAt)}
-          </time>
+          {isStreaming ? (
+            <span className="animate-pulse">Typing...</span>
+          ) : (
+            <time dateTime={message.createdAt.toISOString()}>
+              {formatDateTime(message.createdAt)}
+            </time>
+          )}
 
           <TooltipProvider>
             <Tooltip>
@@ -152,6 +160,7 @@ export function MessageBubble({
                   size="icon"
                   className="size-5"
                   onClick={() => copyToClipboard(message.content)}
+                  disabled={isStreaming}
                 >
                   {isCopied ? (
                     <Check className="size-3" />
@@ -194,6 +203,7 @@ export function MessageBubble({
                       size="icon"
                       className="size-6"
                       onClick={() => handleAddToLibrary(citation.id)}
+                      disabled={isStreaming}
                     >
                       <BookmarkPlus className="size-4" />
                       <span className="sr-only">Add to library</span>

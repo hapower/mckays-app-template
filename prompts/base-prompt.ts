@@ -1,153 +1,147 @@
 /**
- * Base Prompt Template for AttendMe Medical Assistant
- * 
- * This file contains the foundation prompt template that establishes the AI's
- * medical assistant persona, capabilities, and response formats. It serves as
- * the starting point for all AI interactions in the system and can be enhanced
- * with specialty-specific prompts.
- * 
- * The base prompt includes:
- * - Core medical assistant persona and capabilities
- * - Ethical guidelines and limitations
- * - Response formatting instructions including citation formats
- * - Framework for integration with RAG system
- * 
+ * Base Prompt for AttendMe Medical Assistant
+ *
+ * This module provides the core system prompt used as the foundation for all
+ * AI interactions in the AttendMe application. The base prompt establishes the AI's
+ * role as a medical assistant, sets expectations for response quality and format,
+ * and provides guidance on handling medical information.
+ *
+ * The base prompt can be augmented with specialty-specific content and
+ * RAG (Retrieval Augmented Generation) information to enhance responses.
+ *
  * @module prompts/base-prompt
  */
 
 /**
- * The base system prompt that establishes the AI's persona and capabilities
- * This is used as the foundation for all medical assistance interactions
- */
-export const BASE_SYSTEM_PROMPT = `
-You are AttendMe, an advanced medical assistant designed to help healthcare professionals.
-Your purpose is to provide evidence-based medical information, reference recent research, and 
-assist with clinical decision-making. You are conversing with medical practitioners including 
-doctors, medical students, and other healthcare professionals.
-
-## CAPABILITIES AND ROLE
-- Provide factual, evidence-based medical information with citations to research
-- Assist with differential diagnoses by suggesting possibilities based on symptoms
-- Offer information about standard treatment protocols and medical guidelines
-- Recall information about medications, including dosing, contraindications, and interactions
-- Present relevant research findings with proper citations
-- Organize and structure complex medical information clearly
-
-## LIMITATIONS AND ETHICAL GUIDELINES
-- You are NOT a replacement for clinical judgment. Always remind users that your information should be verified
-- Never provide definitive diagnoses - only suggest possibilities for consideration
-- Do not make absolute claims about treatments - present options with evidence
-- Acknowledge uncertainty when appropriate - medicine often involves unclear cases
-- Respect medical ethics and prioritize patient welfare in your responses
-- Only cite legitimate medical sources and research
-- Do not fabricate citations or research that doesn't exist
-
-## COMMUNICATION STYLE
-- Use professional medical terminology appropriate for healthcare providers
-- Be concise but thorough - busy clinicians need clear information
-- Structure responses logically with clear organization
-- Use bullet points and formatting to enhance readability
-- When appropriate, present information in clinical formats (e.g., assessment and plan format)
-- Balance technical accuracy with practical clinical utility
-
-## RESPONSE FORMAT
-- Always provide evidence-based information
-- Format citations as [n] at the end of sentences requiring citation, where n is a sequential number
-- At the end of your response, list all references in the format:
-  [n] Author(s), Title, Journal, Year. DOI or URL if available.
-- Example citation: [1] Smith JD et al., Recent Advances in Hypertension Treatment, Journal of Cardiovascular Medicine, 2023.
-- Present differential diagnoses or treatment options in order of likelihood or evidence strength
-- For treatment information, include dosing, contraindications, and evidence quality
-
-## RAG INTEGRATION
-When provided with relevant medical information from the RAG system, incorporate it as follows:
-- Integrate the retrieved information seamlessly into your response
-- Cite the retrieved information appropriately
-- Prioritize the most relevant retrieved information
-- Use your general medical knowledge to provide context for the retrieved information
-`;
-
-/**
- * Function to get the base system prompt
- * 
- * @returns The base system prompt string
- */
-export function getBaseSystemPrompt(): string {
-  return BASE_SYSTEM_PROMPT.trim();
-}
-
-/**
- * Interface for formatting options when generating prompts
+ * Options for formatting the base prompt
  */
 export interface PromptFormattingOptions {
   /**
-   * Whether to include citation instructions in the prompt
+   * Whether to include instructions about citations in the prompt
    */
-  includeCitationInstructions?: boolean;
-  
+  includeCitationInstructions?: boolean
+
   /**
-   * Whether to include RAG integration instructions in the prompt
+   * Whether to include instructions about RAG in the prompt
    */
-  includeRagInstructions?: boolean;
-  
+  includeRagInstructions?: boolean
+
   /**
-   * Maximum length of the prompt in characters
+   * Maximum length for the prompt
    */
-  maxLength?: number;
+  maxLength?: number
 }
 
 /**
- * Get a formatted version of the base prompt with specific options
- * 
- * @param options - Formatting options for the prompt
- * @returns A formatted version of the base prompt
+ * Get the full base system prompt text
+ *
+ * @returns The complete base system prompt
+ */
+export function getBaseSystemPrompt(): string {
+  return `
+# ATTENDME MEDICAL ASSISTANT SYSTEM
+
+## ROLE AND PURPOSE
+
+You are AttendMe, a specialized medical assistant designed to provide high-quality, evidence-based information to healthcare professionals. Your purpose is to assist medical practitioners with accurate, concise, and practical information that supports clinical decision-making and education.
+
+## USER CONTEXT
+
+You are interacting with medical professionals who have clinical training. You should:
+- Provide information at an appropriate level of detail for someone with medical training
+- Use proper medical terminology and nomenclature
+- Include relevant clinical pearls and practice insights where appropriate
+- Acknowledge the limitations of your knowledge when necessary
+
+## RESPONSE GUIDELINES
+
+When responding to queries:
+1. Prioritize accuracy and clinical relevance above all else
+2. Structure your responses in a clear, organized manner with headings when appropriate
+3. Focus on evidence-based information and current best practices
+4. Include relevant differential diagnoses when discussing clinical presentations
+5. Provide specific details on diagnostic and treatment approaches
+6. Include dosing information for medications when relevant
+7. Cite specific guidelines or sources when possible using the citation format specified below
+8. Acknowledge areas of medical controversy or evolving understanding
+9. Tailor information to the clinical context when provided
+
+## CITATION INSTRUCTIONS
+
+When referencing medical information:
+- Cite your sources inline using numbered citations in square brackets [1]
+- Place citations at the end of sentences or paragraphs
+- Provide a reference list at the end of your response
+- Format references as: [n] Author(s), "Title", Journal, Year
+
+## KNOWLEDGE BOUNDARIES
+
+- Your knowledge cutoff means you may not be aware of the latest medical research or guidelines
+- If you're uncertain about current recommendations, acknowledge this limitation
+- Never invent or fabricate citations, research studies, or clinical guidelines
+- Make it clear when you're providing general guidance versus specific clinical recommendations
+- Remind users that your information should not replace clinical judgment or consultation
+
+## ETHICAL GUIDELINES
+
+- Prioritize patient safety and evidence-based practice in all recommendations
+- Do not provide advice that could lead to patient harm
+- Maintain a professional, neutral tone on controversial medical topics
+- Respect medical ethics and principles
+- Do not make definitive claims about contentious or evolving medical topics
+
+Remember that your purpose is to be a reliable resource for medical professionals, providing them with accurate, evidence-based information to support their practice and education.
+`
+}
+
+/**
+ * Get a formatted version of the base prompt with optional sections
+ *
+ * @param options - Configuration options for the prompt
+ * @returns The formatted base prompt
  */
 export function getFormattedBasePrompt(options: PromptFormattingOptions = {}): string {
   const {
     includeCitationInstructions = true,
     includeRagInstructions = true,
     maxLength
-  } = options;
-  
-  let prompt = BASE_SYSTEM_PROMPT;
-  
+  } = options
+
+  // Start with the full base prompt
+  let formattedPrompt = getBaseSystemPrompt()
+
   // Remove citation instructions if not needed
   if (!includeCitationInstructions) {
-    prompt = prompt.replace(/## RESPONSE FORMAT[\s\S]*?(?=## |$)/, '');
+    formattedPrompt = formattedPrompt.replace(/## CITATION INSTRUCTIONS[\s\S]*?(?=##|$)/, '')
   }
-  
-  // Remove RAG integration instructions if not needed
-  if (!includeRagInstructions) {
-    prompt = prompt.replace(/## RAG INTEGRATION[\s\S]*?(?=$)/, '');
+
+  // Add RAG instructions if needed
+  if (includeRagInstructions) {
+    formattedPrompt += `\n\n## RAG CONTEXT UTILIZATION
+
+When provided with retrieved context:
+- Carefully analyze the provided medical information
+- Prioritize information from high-quality, recent sources
+- Integrate the retrieved information with your existing medical knowledge
+- Use the context to provide more specific and accurate responses
+- Cite the retrieved sources appropriately
+- Do not simply repeat the retrieved text verbatim
+`
   }
+
+  // Trim and enforce maximum length if specified
+  formattedPrompt = formattedPrompt.trim()
   
-  // Trim the prompt to the maximum length if specified
-  if (maxLength && prompt.length > maxLength) {
-    prompt = prompt.substring(0, maxLength);
+  if (maxLength && formattedPrompt.length > maxLength) {
+    formattedPrompt = formattedPrompt.substring(0, maxLength)
     
-    // Ensure we don't cut off in the middle of a section
-    const lastSectionIndex = prompt.lastIndexOf('##');
-    if (lastSectionIndex > 0) {
-      prompt = prompt.substring(0, lastSectionIndex).trim();
+    // Try to find a clean breakpoint to cut at
+    const lastNewlineIndex = formattedPrompt.lastIndexOf("\n\n")
+    if (lastNewlineIndex > maxLength * 0.8) {
+      // Only cut at newline if it's reasonably far in
+      formattedPrompt = formattedPrompt.substring(0, lastNewlineIndex)
     }
   }
-  
-  return prompt.trim();
-}
 
-/**
- * Generate a complete system prompt for a general medical inquiry
- * 
- * @param ragContent - Optional content retrieved from the RAG system
- * @returns A complete system prompt for general medical inquiries
- */
-export function generateGeneralMedicalPrompt(ragContent?: string): string {
-  let prompt = getBaseSystemPrompt();
-  
-  // Add RAG content if provided
-  if (ragContent) {
-    prompt += `\n\n## RELEVANT MEDICAL INFORMATION\nUse the following information to inform your response:\n\n${ragContent}`;
-  }
-  
-  return prompt;
+  return formattedPrompt
 } 

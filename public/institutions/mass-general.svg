@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
-  <rect width="200" height="100" fill="#FFFFFF" />
-  <text x="100" y="50" font-family="Arial" font-size="16" text-anchor="middle" fill="#000000">Mass General</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150">
+  <rect width="300" height="150" fill="#FFFFFF" />
+  <rect x="50" y="35" width="200" height="80" rx="8" fill="#7A1B33" />
+  <text x="150" y="65" font-family="Arial" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">Massachusetts</text>
+  <text x="150" y="90" font-family="Arial" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">General Hospital</text>
+  <rect x="65" y="55" width="15" height="40" fill="#FFFFFF" />
+  <rect x="55" y="65" width="35" height="15" fill="#FFFFFF" />
 </svg> 

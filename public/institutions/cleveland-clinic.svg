@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
-  <rect width="200" height="100" fill="#FFFFFF" />
-  <text x="100" y="50" font-family="Arial" font-size="16" text-anchor="middle" fill="#000000">Cleveland Clinic</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150">
+  <rect width="300" height="150" fill="#FFFFFF" />
+  <rect x="50" y="35" width="200" height="80" rx="8" fill="#3E9ACB" />
+  <text x="150" y="85" font-family="Arial" font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">Cleveland Clinic</text>
+  <path d="M80 62 L70 73 L80 84 L90 73 Z" fill="#FFFFFF" />
 </svg> 

@@ -173,3 +173,19 @@ export function uniqueObjectsByKey<T extends Record<string, any>>(
     return true
   })
 }
+
+/**
+ * Generate a DOI link URL from a DOI string
+ *
+ * @param doi - DOI string (e.g., "10.1234/abcd")
+ * @returns Full DOI URL
+ */
+export function formatDoiLink(doi?: string): string | undefined {
+  if (!doi) return undefined
+
+  // Clean up the DOI
+  const cleanDoi = doi.replace(/^doi:/i, "").trim()
+
+  // Return a proper DOI URL
+  return `https://doi.org/${cleanDoi}`
+}

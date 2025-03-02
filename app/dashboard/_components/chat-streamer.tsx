@@ -7,28 +7,32 @@
  *
  * Features:
  * - Displays chat messages with proper styling for user and AI messages
- * - Handles sending new messages to the AI
+ * - Handles sending new messages to the AI with streaming support
  * - Manages loading states during AI response generation
  * - Displays citations from AI responses with options to add to library
  * - Supports streaming responses for a better user experience
+ * - Integrates with AI chat provider for state management
  *
  * @module app/dashboard/_components/chat-streamer
  */
 
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { MessageBubble } from "@/components/chat/message-bubble"
 import { MessageInput } from "@/components/chat/message-input"
 import { CitationItem } from "@/components/chat/citation-item"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
-import { processChatMessageAction } from "@/actions/ai-chat-actions"
 import { ChatPanel } from "@/components/dashboard/chat-panel"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
-import { ChatMessage, Citation } from "@/types/chat-types"
+import { AlertCircle, Pause, Play, StopCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
+import { AIChatProvider, useAIChat } from "@/components/chat/ai-chat-provider"
+import { useChatStream } from "@/hooks/use-chat-stream"
+import { StreamStatus } from "@/types/chat-types"
+import { Button } from "@/components/ui/button"
 
 /**
  * Props for the ChatStreamer component
@@ -56,27 +60,72 @@ interface ChatStreamerProps {
 }
 
 /**
- * Chat Streamer Component
+ * Chat Streamer Wrapper Component
  *
- * Renders a complete chat interface with message history and input.
+ * This is a wrapper component that provides the AIChatProvider context
+ * to the inner ChatStreamerInner component.
  *
- * @example
- * ```tsx
- * <ChatStreamer userId="user123" specialtyId="cardiology" />
- * ```
+ * @param props - The props for the ChatStreamer component
+ * @returns A React component that renders the chat interface
  */
-export function ChatStreamer({
+export function ChatStreamer(props: ChatStreamerProps) {
+  return (
+    <AIChatProvider
+      userId={props.userId}
+      initialChatId={props.chatId}
+      initialSpecialtyId={props.specialtyId}
+    >
+      <ChatStreamerInner {...props} />
+    </AIChatProvider>
+  )
+}
+
+/**
+ * Inner Chat Streamer Component
+ *
+ * This component handles the actual rendering of the chat interface
+ * and uses the AIChatProvider context through the useAIChat hook.
+ * It now also incorporates streaming functionality using the useChatStream hook.
+ *
+ * @param props - The props for the ChatStreamer component
+ * @returns A React component that renders the chat interface
+ */
+function ChatStreamerInner({
   userId,
-  specialtyId = null,
-  chatId = null,
+  specialtyId = undefined,
+  chatId = undefined,
   className
 }: ChatStreamerProps) {
-  // State for chat messages and UI state
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [citations, setCitations] = useState<Citation[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [currentChatId, setCurrentChatId] = useState<string | null>(chatId)
+  // Get chat state and methods from the AIChatProvider context
+  const {
+    messages,
+    citations,
+    isLoading: isContextLoading,
+    error: contextError,
+    currentSpecialty,
+    sendMessage: sendContextMessage,
+    addToLibrary,
+    setActiveChatId
+  } = useAIChat()
+
+  // Use the chat streaming hook for streaming functionality
+  const {
+    status: streamStatus,
+    error: streamError,
+    userMessage,
+    assistantMessage,
+    citations: streamCitations,
+    startStream,
+    pauseStream,
+    resumeStream,
+    stopStream,
+    isStreaming
+  } = useChatStream()
+
+  // Local state
+  const [useStreamingMode, setUseStreamingMode] = useState(true)
+  const [streamProgress, setStreamProgress] = useState(0)
+  const [combinedMessages, setCombinedMessages] = useState(messages)
 
   // Reference to message container for scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -84,10 +133,82 @@ export function ChatStreamer({
   // Toast notifications
   const { toast } = useToast()
 
+  // Combine regular messages with streaming messages
+  useEffect(() => {
+    // Start with all regular messages
+    let newMessages = [...messages]
+
+    // If we have a temporary user message from streaming, add it
+    if (
+      userMessage &&
+      !messages.some(
+        m => m.id === userMessage.id || m.content === userMessage.content
+      )
+    ) {
+      newMessages.push(userMessage)
+    }
+
+    // If we have a streaming assistant message, add it
+    if (assistantMessage && !messages.some(m => m.id === assistantMessage.id)) {
+      newMessages.push(assistantMessage)
+    }
+
+    // Sort messages by creation time to ensure proper order
+    newMessages.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )
+
+    setCombinedMessages(newMessages)
+  }, [messages, userMessage, assistantMessage])
+
   // Scroll to the bottom of the messages when new ones are added
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [combinedMessages])
+
+  // Handle streaming progress for visual indicators
+  useEffect(() => {
+    let progressInterval: NodeJS.Timeout | null = null
+
+    if (streamStatus === StreamStatus.STREAMING) {
+      // Simulate stream progress by incrementing gradually
+      progressInterval = setInterval(() => {
+        setStreamProgress(prev => {
+          const newProgress = prev + 1
+          return newProgress > 99 ? 99 : newProgress // Max at 99% until complete
+        })
+      }, 100)
+    } else if (
+      streamStatus === StreamStatus.COMPLETED ||
+      streamStatus === StreamStatus.ERROR
+    ) {
+      // When complete, set to 100%
+      setStreamProgress(100)
+    } else if (streamStatus === StreamStatus.IDLE) {
+      // Reset progress when idle
+      setStreamProgress(0)
+    }
+
+    // Clean up interval
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval)
+      }
+    }
+  }, [streamStatus])
+
+  // When a stream completes, update the chat context with the final message
+  useEffect(() => {
+    if (streamStatus === StreamStatus.COMPLETED && assistantMessage) {
+      // In a real implementation, we would sync the streamed message with the AI chat context
+      // This could involve either:
+      // 1. Adding the message directly to the context state
+      // 2. Triggering a refresh to fetch the latest messages
+      // For now, we can rely on the messages being added to the database and
+      // fetched on the next render or chat reload
+    }
+  }, [streamStatus, assistantMessage])
 
   // Function to scroll to the bottom of the message container
   const scrollToBottom = () => {
@@ -100,110 +221,30 @@ export function ChatStreamer({
    * @param content - The message text to send
    */
   const handleSendMessage = async (content: string) => {
-    if (!content.trim() || isLoading) return
-
-    // Clear any previous errors
-    setError(null)
-    setIsLoading(true)
+    if (!content.trim() || isContextLoading || isStreaming) return
 
     try {
-      // Create a temporary user message to show immediately
-      const tempUserMessage: ChatMessage = {
-        id: `temp-${Date.now()}`,
-        chatId: currentChatId || "temp",
-        content,
-        role: "user",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-
-      // Add the user message to the UI
-      setMessages(prev => [...prev, tempUserMessage])
-
-      // Create a temporary loading message from the assistant
-      const tempAssistantMessage: ChatMessage = {
-        id: `temp-assistant-${Date.now()}`,
-        chatId: currentChatId || "temp",
-        content: "Thinking...",
-        role: "assistant",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-
-      // Wait a moment, then show the loading message
-      setTimeout(() => {
-        if (isLoading) {
-          setMessages(prev => [...prev, tempAssistantMessage])
-        }
-      }, 500)
-
-      // Process the message with the AI
-      const result = await processChatMessageAction({
-        message: content,
-        chatId: currentChatId || undefined,
-        userId,
-        specialtyId: specialtyId || undefined
-      })
-
-      // Handle the response
-      if (result.isSuccess && result.data) {
-        // If this is a new chat, save the chat ID
-        if (!currentChatId && result.data.message.chatId) {
-          setCurrentChatId(result.data.message.chatId)
-        }
-
-        // Remove the temporary messages and add the real ones
-        setMessages(prev =>
-          prev
-            .filter(msg => !msg.id.startsWith("temp"))
-            .concat([
-              {
-                ...tempUserMessage,
-                id: tempUserMessage.id.replace("temp-", ""),
-                chatId: result.data.message.chatId
-              },
-              result.data.message
-            ])
-        )
-
-        // Save any citations
-        if (result.data.citations && result.data.citations.length > 0) {
-          setCitations(prev => [
-            ...prev,
-            ...(result.data.citations as Citation[])
-          ])
-        }
-      } else {
-        // Handle error in the response
-        setError(
-          result.message || "Failed to get a response. Please try again."
-        )
-
-        // Remove the temporary assistant message, keep the user message
-        setMessages(prev =>
-          prev.filter(msg => msg.id !== tempAssistantMessage.id)
-        )
-
-        toast({
-          title: "Error",
-          description: result.message || "Failed to process your message",
-          variant: "destructive"
+      if (useStreamingMode) {
+        // Use streaming mode
+        await startStream({
+          message: content,
+          chatId: chatId || undefined,
+          userId,
+          specialtyId: currentSpecialty?.id || undefined,
+          useStreaming: true
         })
+      } else {
+        // Use standard non-streaming mode via context
+        await sendContextMessage(content)
       }
-    } catch (err) {
-      // Handle unexpected errors
-      const errorMessage =
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      setError(errorMessage)
-      console.error("Error processing message:", err)
+    } catch (error) {
+      console.error("Error sending message:", error)
 
       toast({
         title: "Error",
-        description: "Something went wrong while processing your message",
+        description: "Failed to send message. Please try again.",
         variant: "destructive"
       })
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -214,45 +255,66 @@ export function ChatStreamer({
    */
   const handleAddToLibrary = async (citationId: string) => {
     try {
-      // For now, just show a toast notification
-      // In a future step, this will call a server action to save to the library
-      toast({
-        title: "Added to Library",
-        description: "Citation added to your library"
-      })
+      await addToLibrary(citationId)
+    } catch (error) {
+      console.error("Error adding to library:", error)
 
-      // Update the citation in the UI to show it's in the library
-      setCitations(prev =>
-        prev.map(citation =>
-          citation.id === citationId
-            ? { ...citation, inLibrary: true }
-            : citation
-        )
-      )
-    } catch (err) {
-      console.error("Error adding citation to library:", err)
       toast({
         title: "Error",
-        description: "Failed to add citation to library",
+        description: "Failed to add to library. Please try again.",
         variant: "destructive"
       })
     }
   }
 
+  /**
+   * Handle streaming control buttons
+   */
+  const handlePauseStream = () => {
+    pauseStream()
+  }
+
+  const handleResumeStream = () => {
+    resumeStream()
+  }
+
+  const handleStopStream = () => {
+    stopStream()
+  }
+
+  /**
+   * Toggle streaming mode
+   */
+  const toggleStreamingMode = () => {
+    setUseStreamingMode(!useStreamingMode)
+  }
+
   // Render welcome message if no messages exist yet
   const renderWelcomeMessage = () => {
-    if (messages.length === 0) {
+    if (combinedMessages.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <h2 className="text-2xl font-bold">Welcome to AttendMe</h2>
           <p className="text-muted-foreground mb-8 mt-2 max-w-md">
             Your AI medical assistant to help answer your questions with
             evidence-based information.
-            {specialtyId && " Specialty mode activated."}
+            {currentSpecialty.id && " Specialty mode activated."}
           </p>
           <p className="text-muted-foreground text-sm">
             Type your medical question below to get started.
           </p>
+
+          {/* Streaming mode toggle */}
+          <div className="mt-6 flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleStreamingMode}
+              className={useStreamingMode ? "bg-primary/10" : ""}
+            >
+              {useStreamingMode ? "Streaming mode: ON" : "Streaming mode: OFF"}
+            </Button>
+          </div>
         </div>
       )
     }
@@ -261,11 +323,21 @@ export function ChatStreamer({
 
   // Handle active chat message display
   const renderChatMessages = () => {
-    return messages.map(message => {
+    return combinedMessages.map(message => {
+      // Check if this is a temporary streaming message
+      const isStreamingMessage =
+        (userMessage && message.id === userMessage.id) ||
+        (assistantMessage && message.id === assistantMessage.id)
+
       // Find citations for this message
-      const messageCitations = citations.filter(
+      let messageCitations = citations.filter(
         citation => citation.messageId === message.id
       )
+
+      // If this is the streaming assistant message, use stream citations
+      if (assistantMessage && message.id === assistantMessage.id) {
+        messageCitations = streamCitations
+      }
 
       return (
         <MessageBubble
@@ -273,6 +345,11 @@ export function ChatStreamer({
           message={message}
           citations={messageCitations}
           onAddToLibrary={handleAddToLibrary}
+          isStreaming={
+            isStreamingMessage && streamStatus === StreamStatus.STREAMING
+              ? true
+              : undefined
+          }
         />
       )
     })
@@ -281,19 +358,31 @@ export function ChatStreamer({
   // Show citations horizontally below the last assistant message
   const renderCitations = () => {
     // Only show citations if we have some and we're not loading
-    if (citations.length === 0 || isLoading) return null
+    if (
+      (citations.length === 0 && streamCitations.length === 0) ||
+      (isContextLoading && streamStatus !== StreamStatus.COMPLETED)
+    ) {
+      return null
+    }
 
     // Get citations for the last assistant message
-    const lastAssistantMessage = [...messages]
+    const lastAssistantMessage = [...combinedMessages]
       .reverse()
       .find(msg => msg.role === "assistant" && !msg.id.startsWith("temp"))
 
-    if (!lastAssistantMessage) return null
+    // Determine which citations to show
+    let relevantCitations = citations
 
-    const relevantCitations = citations.filter(
-      citation =>
-        citation.messageId === lastAssistantMessage.id || !citation.messageId
-    )
+    if (assistantMessage && assistantMessage.id === lastAssistantMessage?.id) {
+      // Use stream citations if the last message is the streaming one
+      relevantCitations = streamCitations
+    } else {
+      // Otherwise use regular citations
+      relevantCitations = citations.filter(
+        citation =>
+          citation.messageId === lastAssistantMessage?.id || !citation.messageId
+      )
+    }
 
     if (relevantCitations.length === 0) return null
 
@@ -318,8 +407,54 @@ export function ChatStreamer({
     )
   }
 
+  // Render streaming controls when a message is being streamed
+  const renderStreamingControls = () => {
+    if (!isStreaming) return null
+
+    return (
+      <div className="mb-4 flex items-center justify-center space-x-2">
+        {streamStatus === StreamStatus.STREAMING ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePauseStream}
+            className="size-8 p-0"
+          >
+            <Pause className="size-4" />
+            <span className="sr-only">Pause</span>
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResumeStream}
+            className="size-8 p-0"
+          >
+            <Play className="size-4" />
+            <span className="sr-only">Resume</span>
+          </Button>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleStopStream}
+          className="size-8 p-0"
+        >
+          <StopCircle className="size-4" />
+          <span className="sr-only">Stop</span>
+        </Button>
+
+        <div className="text-muted-foreground ml-2 text-xs">
+          {streamStatus === StreamStatus.STREAMING ? "Streaming..." : "Paused"}
+        </div>
+      </div>
+    )
+  }
+
   // Error display component
   const renderError = () => {
+    const error = contextError || streamError
     if (!error) return null
 
     return (
@@ -330,12 +465,26 @@ export function ChatStreamer({
     )
   }
 
+  // Get the appropriate title based on specialty
+  const getPanelTitle = () => {
+    if (currentSpecialty.id && currentSpecialty.name) {
+      return `${currentSpecialty.name} Assistant`
+    }
+    return "Medical Assistant"
+  }
+
   // If there are no messages yet, show the welcome message
-  const isEmpty = messages.length === 0
+  const isEmpty = combinedMessages.length === 0
+
+  // Determine loading state by combining context loading and stream status
+  const isLoading =
+    isContextLoading ||
+    streamStatus === StreamStatus.STREAMING ||
+    streamStatus === StreamStatus.PAUSED
 
   return (
     <ChatPanel
-      title={specialtyId ? "Specialty Chat" : "Medical Assistant"}
+      title={getPanelTitle()}
       className={className}
       isLoading={isLoading}
       footer={
@@ -356,12 +505,13 @@ export function ChatStreamer({
         <>
           {renderChatMessages()}
           {renderCitations()}
+          {renderStreamingControls()}
           <div ref={messagesEndRef} />
         </>
       )}
 
-      {/* Show skeleton if loading */}
-      {isLoading && (
+      {/* Show skeleton if loading but not streaming */}
+      {isContextLoading && !isStreaming && (
         <div className="opacity-60">
           <ChatSkeleton className="mt-4" messageCount={1} />
         </div>

@@ -3,12 +3,16 @@
  *
  * This component allows users to browse and select medical specialties
  * which affects the AI responses by focusing on that specialty area.
+ * It integrates with the useSpecialtySelection hook to handle specialty
+ * selection state and updates to the AI chat context.
  *
  * Features:
  * - Grouped display of medical and surgical specialties
  * - Loading states and error handling
  * - Search functionality to find specialties quickly
  * - Sends selected specialty to parent components for use in RAG and prompts
+ * - Visual indication of the currently selected specialty
+ * - Ability to clear selected specialty
  *
  * @module app/dashboard/_components/specialties-selector
  */
@@ -20,47 +24,36 @@ import { Input } from "@/components/ui/input"
 import { SpecialtyGrid } from "@/components/specialties/specialty-grid"
 import { SpecialtySkeleton } from "@/components/specialties/specialty-skeleton"
 import { SelectSpecialty } from "@/db/schema"
-import { Search } from "lucide-react"
+import { Search, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import {
   getSpecialtiesAction,
   getGroupedSpecialtiesAction
 } from "@/actions/db/specialties-actions"
-
-/**
- * Props for the SpecialtiesSelector component
- */
-interface SpecialtiesSelectorProps {
-  /**
-   * The ID of the currently selected specialty
-   */
-  selectedSpecialtyId?: string | null
-
-  /**
-   * Callback function when a specialty is selected
-   */
-  onSelectSpecialty?: (specialty: SelectSpecialty) => void
-
-  /**
-   * Optional CSS class name
-   */
-  className?: string
-}
+import { useSpecialtySelection } from "@/hooks/use-specialty-selection"
+import { Badge } from "@/components/ui/badge"
 
 /**
  * SpecialtiesSelector component
  *
- * @param selectedSpecialtyId - Currently selected specialty ID (if any)
- * @param onSelectSpecialty - Callback for when user selects a specialty
- * @param className - Optional additional CSS classes
+ * This component displays a grid of medical specialties that users can select
+ * to focus the AI on a specific medical domain. It integrates with the
+ * useSpecialtySelection hook to manage specialty selection state and update
+ * the AI chat context when a specialty is selected.
  */
-export function SpecialtiesSelector({
-  selectedSpecialtyId,
-  onSelectSpecialty,
-  className
-}: SpecialtiesSelectorProps) {
+export function SpecialtiesSelector() {
+  // Get specialty selection functionality from custom hook
+  const {
+    selectedSpecialtyId,
+    selectedSpecialtyName,
+    isLoading: isSelectionLoading,
+    error: selectionError,
+    selectSpecialty: handleSelectSpecialty,
+    clearSpecialty: handleClearSpecialty
+  } = useSpecialtySelection()
+
   // State for specialties data and UI state
   const [specialties, setSpecialties] = useState<SelectSpecialty[]>([])
   const [groupedSpecialties, setGroupedSpecialties] = useState<{
@@ -145,15 +138,6 @@ export function SpecialtiesSelector({
   }, [searchQuery, specialties])
 
   /**
-   * Handle specialty selection
-   */
-  const handleSelectSpecialty = (specialty: SelectSpecialty) => {
-    if (onSelectSpecialty) {
-      onSelectSpecialty(specialty)
-    }
-  }
-
-  /**
    * Handle search input change
    */
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,34 +145,41 @@ export function SpecialtiesSelector({
   }
 
   /**
-   * Clear the selected specialty
+   * Wrapper for selecting a specialty that handles loading state
    */
-  const handleClearSelection = () => {
-    if (onSelectSpecialty && selectedSpecialtyId) {
-      // Find the currently selected specialty to pass to handler
-      const current = specialties.find(s => s.id === selectedSpecialtyId)
-      if (current) {
-        onSelectSpecialty(current)
-      }
+  const onSelectSpecialty = async (specialty: SelectSpecialty) => {
+    // If the specialty is already selected, clear it
+    if (selectedSpecialtyId === specialty.id) {
+      await handleClearSpecialty()
+      return
     }
+
+    // Otherwise, select the new specialty
+    await handleSelectSpecialty(specialty)
   }
 
+  // Show a combined loading state
+  const isLoadingState = isLoading || isSelectionLoading
+
+  // Combined error handling
+  const combinedError = error || selectionError
+
   // Loading state
-  if (isLoading) {
+  if (isLoading && !selectionError) {
     return <SpecialtySkeleton count={8} grouped />
   }
 
   // Error state
-  if (error) {
+  if (combinedError && !isLoadingState) {
     return (
       <Alert variant="destructive" className="mb-4">
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>{combinedError}</AlertDescription>
       </Alert>
     )
   }
 
   // Empty state - no specialties available
-  if (specialties.length === 0) {
+  if (specialties.length === 0 && !isLoadingState) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <h3 className="text-lg font-medium">No specialties available</h3>
@@ -200,7 +191,31 @@ export function SpecialtiesSelector({
   }
 
   return (
-    <div className={className}>
+    <div className="space-y-4">
+      {/* Selected specialty display */}
+      {selectedSpecialtyId && selectedSpecialtyName && (
+        <div className="bg-primary/10 flex items-center justify-between rounded-md p-3">
+          <div className="flex items-center">
+            <Badge variant="outline" className="bg-primary/20 mr-2">
+              Active Specialty
+            </Badge>
+            <span className="text-primary font-medium">
+              {selectedSpecialtyName}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearSpecialty}
+            disabled={isSelectionLoading}
+            className="text-primary hover:bg-primary/20 hover:text-primary"
+          >
+            <X className="mr-1 size-4" />
+            Clear
+          </Button>
+        </div>
+      )}
+
       <div className="mb-4 space-y-4">
         {/* Search input */}
         <div className="relative">
@@ -213,18 +228,6 @@ export function SpecialtiesSelector({
             onChange={handleSearchChange}
           />
         </div>
-
-        {/* Clear selection button - only shown when a specialty is selected */}
-        {selectedSpecialtyId && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleClearSelection}
-            className="w-full"
-          >
-            Clear Selection
-          </Button>
-        )}
       </div>
 
       {/* Show search results or grouped specialties */}
@@ -233,7 +236,7 @@ export function SpecialtiesSelector({
         <SpecialtyGrid
           specialties={filteredSpecialties}
           selectedSpecialtyId={selectedSpecialtyId}
-          onSelectSpecialty={handleSelectSpecialty}
+          onSelectSpecialty={onSelectSpecialty}
           groupByType={false}
         />
       ) : // Show grouped specialties if groups are available, otherwise fall back to ungrouped
@@ -245,16 +248,26 @@ export function SpecialtiesSelector({
             ...groupedSpecialties.surgical
           ]}
           selectedSpecialtyId={selectedSpecialtyId}
-          onSelectSpecialty={handleSelectSpecialty}
+          onSelectSpecialty={onSelectSpecialty}
           groupByType={true}
         />
       ) : (
         <SpecialtyGrid
           specialties={filteredSpecialties}
           selectedSpecialtyId={selectedSpecialtyId}
-          onSelectSpecialty={handleSelectSpecialty}
+          onSelectSpecialty={onSelectSpecialty}
           groupByType={false}
         />
+      )}
+
+      {/* Loading overlay */}
+      {isSelectionLoading && (
+        <div className="bg-background/60 absolute inset-0 flex items-center justify-center backdrop-blur-sm">
+          <div className="flex flex-col items-center">
+            <div className="border-primary size-8 animate-spin rounded-full border-4 border-t-transparent"></div>
+            <p className="mt-2 text-sm">Updating specialty...</p>
+          </div>
+        </div>
       )}
     </div>
   )

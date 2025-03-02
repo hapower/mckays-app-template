@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
-  <rect width="200" height="100" fill="#FFFFFF" />
-  <text x="100" y="50" font-family="Arial" font-size="16" text-anchor="middle" fill="#000000">Michigan Health</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150">
+  <rect width="300" height="150" fill="#FFFFFF" />
+  <rect x="50" y="35" width="200" height="80" rx="8" fill="#00274C" />
+  <text x="150" y="65" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#FFFFFF">University of</text>
+  <text x="150" y="85" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#FFFFFF">Michigan Health</text>
+  <path d="M75 55 L85 75 L95 55" stroke="#FFCB05" stroke-width="3" fill="none" />
 </svg> 

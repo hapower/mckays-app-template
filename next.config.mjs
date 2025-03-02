@@ -12,9 +12,7 @@ const nextConfig = {
       { hostname: "*.supabase.co" }
     ]
   },
-  experimental: {
-    serverComponentsExternalPackages: ["@prisma/client", "bcrypt"]
-  }
+  serverExternalPackages: ["@prisma/client", "bcrypt"]
 }
 
 export default nextConfig

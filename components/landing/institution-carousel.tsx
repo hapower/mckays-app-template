@@ -5,14 +5,15 @@
  * for the landing page. It demonstrates social proof by showcasing medical
  * institutions that use the AttendMe service.
  *
- * Features:
- * - Infinite horizontal scrolling animation
- * - Automatic and smooth animation
- * - Responsive design that adapts to different screen sizes
- * - Support for both light and dark themes
- * - Performance optimization with hardware acceleration
+ * The component is fully responsive, adapting to all screen sizes while maintaining
+ * smooth animation and visual appeal.
  *
  * @module components/landing/institution-carousel
+ *
+ * @dependencies
+ * - Framer Motion: For scrolling animation effects
+ * - Next/Image: For optimized image loading
+ * - next-themes: For theme awareness
  */
 
 "use client"
@@ -62,6 +63,7 @@ interface InstitutionCarouselProps {
 
 /**
  * Default institutions to display if none are provided
+ * In a production app, these would come from a database or API
  */
 const defaultInstitutions: Institution[] = [
   { name: "Mayo Clinic", logo: "/institutions/mayo-clinic.svg" },
@@ -84,6 +86,9 @@ const defaultInstitutions: Institution[] = [
 
 /**
  * InstitutionCarousel component
+ *
+ * A horizontally scrolling carousel showing medical institutions that use AttendMe.
+ * Fully responsive with optimized layout for mobile, tablet, and desktop viewports.
  *
  * @param institutions - Array of institutions to display
  * @param title - Title for the carousel section
@@ -114,17 +119,17 @@ export function InstitutionCarousel({
   return (
     <section
       className={cn(
-        "relative overflow-hidden bg-gray-50 py-10 dark:bg-gray-900",
+        "relative overflow-hidden bg-gray-50 py-6 sm:py-8 md:py-10 dark:bg-gray-900",
         className
       )}
     >
-      <div className="container mx-auto mb-6 px-4">
-        <h2 className="text-center text-xl font-medium text-gray-600 dark:text-gray-300">
+      <div className="container mx-auto mb-4 px-4 sm:mb-6">
+        <h2 className="text-center text-base font-medium text-gray-600 sm:text-lg md:text-xl dark:text-gray-300">
           {title}
         </h2>
       </div>
 
-      {/* Logo carousel */}
+      {/* Logo carousel - adjusts sizing for different screen widths */}
       <div className="relative flex overflow-hidden">
         {/* First set of logos */}
         <motion.div
@@ -141,9 +146,9 @@ export function InstitutionCarousel({
           {duplicatedInstitutions.map((institution, index) => (
             <div
               key={`${institution.name}-${index}`}
-              className="mx-8 shrink-0 py-2"
+              className="mx-4 shrink-0 py-2 sm:mx-6 md:mx-8"
             >
-              <div className="flex h-12 w-32 items-center justify-center sm:h-16 sm:w-48">
+              <div className="flex h-10 w-28 items-center justify-center sm:h-12 sm:w-32 md:h-16 md:w-40">
                 {/* Use a generic placeholder for now since we don't have actual logo files */}
                 <div
                   className={cn(
@@ -157,7 +162,7 @@ export function InstitutionCarousel({
                       theme === "dark" ? "text-gray-200" : "text-gray-800"
                     )}
                   >
-                    <span className="text-xs font-bold">
+                    <span className="text-xs font-bold sm:text-sm">
                       {institution.name}
                     </span>
                   </div>
@@ -168,9 +173,9 @@ export function InstitutionCarousel({
         </motion.div>
       </div>
 
-      {/* Gradient overlays for smooth fade effect on edges */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-gray-50 dark:from-gray-900"></div>
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-gray-50 dark:from-gray-900"></div>
+      {/* Gradient overlays for smooth fade effect on edges - responsive width */}
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-gray-50 sm:w-16 md:w-24 dark:from-gray-900"></div>
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-gray-50 sm:w-16 md:w-24 dark:from-gray-900"></div>
     </section>
   )
 }

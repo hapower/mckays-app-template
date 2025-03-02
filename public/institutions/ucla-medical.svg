@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
-  <rect width="200" height="100" fill="#FFFFFF" />
-  <text x="100" y="50" font-family="Arial" font-size="16" text-anchor="middle" fill="#000000">UCLA Medical</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150">
+  <rect width="300" height="150" fill="#FFFFFF" />
+  <rect x="50" y="35" width="200" height="80" rx="8" fill="#2774AE" />
+  <text x="150" y="75" font-family="Arial" font-size="20" font-weight="bold" text-anchor="middle" fill="#FFFFFF">UCLA</text>
+  <text x="150" y="100" font-family="Arial" font-size="16" text-anchor="middle" fill="#FFFFFF">Medical Center</text>
+  <path d="M75 65 L85 55 L95 65 L85 75 Z" fill="#FFD100" />
 </svg> 
